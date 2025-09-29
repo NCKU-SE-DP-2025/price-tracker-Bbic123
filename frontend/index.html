@@ -1,33 +1,15 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-	<head>
-		<meta charset="utf-8"/>
-		<meta name="viewport" content="width=device-width, initial-scale=1"/>
-		<title>0925HW</title>
-		<link rel="stylesheet" href="style.css">
-	</head>
-	<body>
-		<script>
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>價格追蹤小幫手</title>
+  </head>
+  <body>
+    <!-- Vue 會掛在這裡 -->
+    <div id="app"></div>
 
-			function user_click_hamburger() {
-				// console.log('CHECK');
-				const items = document.querySelector('.items');
-				const isHidden = getComputedStyle(items).display === 'none';
-				items.style.display = isHidden ? 'block' : 'none';
-			}
-
-		</script>
-		<div class="bar">
-			<h3><b>價格追蹤小幫手</b></h3>
-			<div class="items">
-				<ul>
-					<li><button class="bar_btn" type="button">物價概覽</button></li>
-					<li><button class="bar_btn" type="button">物價趨勢</button></li>
-					<li><button class="bar_btn" type="button">相關新聞</button></li>
-					<li><button class="bar_btn" type="button" style="font-size: 17.5px;"><u>登入</u></button></li>
-				</ul>
-			</div>
-			<button class="hamburger" type="button" onclick="user_click_hamburger();">☰</button>
-		</div>
-	</body>
+    <!-- 很重要：載入你的入口檔 -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

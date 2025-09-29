@@ -1,114 +1,117 @@
 <template>
-    <div class="login-page">
-        <h1>使用者登入</h1>
-        <div class="container">
-            <form @submit.prevent="login">
-                <input v-model="username" type="text" placeholder="Username" required>
-                <input v-model="password" type="password" placeholder="Password" required>
-                <p v-if="loginError" class="error">{{ loginError }}</p>
-                <div class="ops">
-                    <button type="button" id="register"><RouterLink to="/register">註冊</RouterLink></button>
-                    <button type="submit" id="login">登入</button>
-                </div>
-            </form>
-        </div>
-    </div>
+	<div class="login-page">
+		<h1>使用者登入</h1>
+
+		<div class="card">
+			<form @submit.prevent="login">
+				<input v-model="username" type="text" placeholder="Username" required />
+				<input v-model="password" type="password" placeholder="Password" required />
+				<p v-if="loginError" class="error">{{ loginError }}</p>
+
+				<div class="ops">
+					<RouterLink to="/register" class="btn ghost">註冊</RouterLink>
+					<button type="submit" class="btn primary">登入</button>
+				</div>
+			</form>
+		</div>
+	</div>
 </template>
 
-<script>
-import { useAuthStore } from '@/stores/auth';
+<script setup>
+import { ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { storeToRefs } from 'pinia'
 
-export default {
-    data() {
-        return {
-            username: '',
-            password: ''
-        };
-    },
-    methods: {
-        login() {
-            const userStore = useAuthStore();
-            userStore.login(this.username, this.password);
-        }
-    },
-    computed: {
-        loginError(){
-            const userStore = useAuthStore();
-            return userStore.getLoginError;
-        }
-    }
+const username = ref('')
+const password = ref('')
+
+const auth = useAuthStore()
+const { getLoginError: loginError } = storeToRefs(auth)
+
+function login() {
+	auth.login(username.value, password.value)
 }
 </script>
 
 <style scoped>
-.login-page {
-    padding: 3em 5em;
-    background: #f3f3f3;
-    min-height: calc(100vh - 4.5em);
-    height: calc(100% - 4.5em);
-    box-sizing: border-box;
+/* Page */
+.login-page{
+	padding: 3em 5em;
+	background: #1e1e1e;
+	min-height: calc(100vh - 4.5em);
+	box-sizing: border-box;
+	color:#eaeaea;
 }
 
-.error{
-    color: red;
+/* Card */
+.card{
+	margin-top: 2em;
+	background: #2e2e2e;
+	border: 2px solid #464646;
+	border-radius: 14px;
+	padding: 2em;
 }
 
-.container {
-    margin-top: 2em;
-    background: #fff;
-    padding: 2em;
-    border-radius: 1em;
-    box-shadow: 0 0 10px rgba(0, 0, 0, .1);
-}
-
+/* Form */
 form{
-    display: flex;
-    flex-direction: column;
+	display: flex;
+	flex-direction: column;
+	gap: .6em;
 }
-
 form > input{
-    margin: .25em 0;
-    padding: .5em 1em;
-    font-size: 1.2em;
-    border: 1px solid #ccc;
-    border-radius: .5em;
+	color:#fff;
+	background:#1f1f1f;
+	border:1px solid #3a3a3a;
+	border-radius:10px;
+	padding:.75em 1em;
+	font-size:1.05rem;
+	outline:none;
+	transition: border-color .12s ease, background .12s ease;
+}
+form > input::placeholder{ color:#757575; }
+form > input:focus{
+	border-color:#6aa9c8;
+	background:#222;
 }
 
+/* Error */
+.error{ color:#ff6f6f; margin:.2em 0 .4em; }
+
+/* Actions */
 .ops{
-    margin-top: .5em;
-    display: flex;
-    justify-content: center;
+	margin-top:.75em;
+	display:flex;
+	gap:.75em;
+	justify-content:center;
+	align-items:center;
 }
 
-.ops > button{
-    padding: .5em 1em;
-    margin: 0 .5em;
-    font-size: 1.2em;
-    border: none;
-    border-radius: .5em;
-    cursor: pointer;
+/* Buttons */
+.btn{
+	display:inline-block;
+	padding:.6em 1.4em;
+	font-size:1.05rem;
+	border-radius:999px;
+	font-weight:600;
+	cursor:pointer;
+	text-decoration:none;
+	transition: filter .12s ease, transform .02s ease, background .12s ease, color .12s ease, border-color .12s ease;
 }
 
-#register{
-    background-color: #F3F3F3;
-    border: 1px solid #ccc;
+/* Ghost (註冊) */
+.ghost{
+	background:transparent;
+	color:#eaeaea;
+	border:1px solid #555;
 }
+.ghost:hover{ filter:brightness(1.05); border-color:#6aa9c8; }
 
-#register > a{
-    text-decoration: none;
-    color: #000;
+/* Primary (登入) */
+.primary{
+	background:#55c0df;
+	border:1px solid #4aaece;
+	color:#0e0e0e;
 }
-
-#register:hover{
-    background-color: #e8e8e8;
-}
-
-#login{
-    background-color: #5bc0de;
-    color: #fff;
-}
-
-#login:hover{
-    background-color: #46b8da;
-}
+.primary:hover{ filter:brightness(1.05); }
+.btn:active{ transform: translateY(1px); }
 </style>
