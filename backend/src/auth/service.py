@@ -17,7 +17,7 @@ oauth2_bearer_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
 class PasswordService:
     def __init__(self):
         self.password_context = CryptContext(
-            schemes=["bcrypt"], deprecated="auto"
+            schemes=["pbkdf2_sha256"], deprecated="auto"
         )
 
     def hash_password(self, plain_password: str) -> str:
