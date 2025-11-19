@@ -13,11 +13,11 @@ on:
 
 jobs:
   test:
-    runs-on: F74144715
+    runs-on: [F74144715]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
