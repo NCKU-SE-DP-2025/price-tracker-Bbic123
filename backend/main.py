@@ -6,18 +6,12 @@ import requests
 from openai import OpenAI
 
 from src.auth.router import router as auth_router
-from src.auth.models import User
-from src.auth.service import password_service
-from src.database import database, Base
-from src.news.models import NewsArticle, user_news_association_table
+from src.database import database
+from src.news.models import NewsArticle
 from src.news.router import router as news_router
 from src.news.service import news_service
-from src.news.schemas import PromptRequest
 from src.prices.router import router as prices_router
-from src.news.schemas import NewsSummaryRequestSchema as NewsSumaryRequestSchema
 
-session_opener = database.get_session
-pwd_context = password_service.password_context
 get_new_info = news_service.get_new_info
 
 sentry_sdk.init(

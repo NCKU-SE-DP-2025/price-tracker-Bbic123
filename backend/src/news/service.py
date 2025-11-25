@@ -1,12 +1,11 @@
 import json
 import itertools
 
-import requests
-from bs4 import BeautifulSoup
 from main import OpenAI
 from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
-from urllib.parse import quote
+from src.crawler.udn_crawler import UDNCrawler
+from src.crawler.crawler_base import NewsWithSummary
 
 from src.database import database
 from src.news.constants import (
@@ -39,93 +38,7 @@ class AIService:
             messages=messages,
         )
         return response.choices[0].message.content
-
-
-class UdnNewsSourceService:
-    """
-    udn news source service
-    """
-
-    def __init__(self):
-        pass
-
-    def fetch_udn_page(self, search_term, page_number: int):
-        query_params = {
-            "page": page_number,
-            "id": f"search:{quote(search_term)}",
-            "channelId": 2,
-            "type": "searchword",
-        }
-        response = requests.get("https://udn.com/api/more", params=query_params)
-        return response.json()["lists"]
-
-    def fetch_news_list(self, search_term: str, is_initial: bool = False):
-        if is_initial:
-            all_news_data: list[dict] = []
-            for page_number in range(1, 10):
-                all_news_data.extend(
-                    self.fetch_udn_page(search_term, page_number)
-                )
-            return all_news_data
-        return self.fetch_udn_page(search_term, 1)
-
-    def parse_udn_article(self, article_url: str) -> dict:
-        """
-        parse udn article
-        """
-        article_response = requests.get(article_url)
-        parsed_article = BeautifulSoup(
-            article_response.text,
-            "html.parser",
-        )
-
-        detail_title = parsed_article.find(
-            "h1",
-            class_="article-content__title",
-        ).text
-        published_time = parsed_article.find(
-            "time",
-            class_="article-content__time",
-        ).text
-        content_section = parsed_article.find(
-            "section",
-            class_="article-content__editor",
-        )
-
-        paragraphs = [
-            p.text
-            for p in content_section.find_all("p")
-            if p.text.strip() != "" and "▪" not in p.text
-        ]
-
-        return {
-            "url": article_url,
-            "title": detail_title,
-            "time": published_time,
-            "content": paragraphs,
-        }
-
-
-class NewsArticleRepository:
-    def __init__(self, session_factory):
-        self.Session = session_factory
-
-    def add_new_news_article(self, news_data: dict):
-        session: Session = self.Session()
-        try:
-            news_article = NewsArticle(
-                url=news_data["url"],
-                title=news_data["title"],
-                time=news_data["time"],
-                content=" ".join(news_data["content"]),
-                summary=news_data["summary"],
-                reason=news_data["reason"],
-            )
-            session.add(news_article)
-            session.commit()
-        finally:
-            session.close()
-
+    
 
 class NewsVoteService:
     def __init__(self, association_table=user_news_association_table):
@@ -228,32 +141,27 @@ class GetVotedArticles:
 class NewsService(AIService):
     def __init__(
         self,
-        udn_client: UdnNewsSourceService,
-        news_repo: NewsArticleRepository,
+        udn_crawler: UDNCrawler,
         api_key: str = "xxx",
         model: str = "gpt-3.5-turbo",
+        database_session: Session = database.session,
     ):
         super().__init__(api_key=api_key, model=model)
-        self.udn_client = udn_client
-        self.news_repo = news_repo
+        self.udn_crawler = udn_crawler
+        self.database_session = database_session
 
     def get_new_info(self, search_term: str, is_initial: bool = False):
-        try:
-            return self.udn_client.fetch_news_list(
-                search_term,
-                is_initial=is_initial,
-            )
-        except TypeError:
-            from main import get_new_info as legacy_get_new_info
-            return legacy_get_new_info(search_term, is_initial=is_initial)
+        if is_initial:
+            return self.udn_crawler.startup(search_term)
+        return self.udn_crawler.get_headline(search_term, page=1)
 
     def fetch_relevant_price_news_and_store(
         self,
         is_initial: bool = False,
     ):
         search_results = self.get_new_info("價格", is_initial=is_initial)
-        for result_item in search_results:
-            list_title = result_item["title"]
+        for headline in search_results:
+            list_title = headline.title
             if (
                 self.ai_completion(
                     PRICE_RELEVANCE_SYSTEM_PROMPT,
@@ -263,17 +171,22 @@ class NewsService(AIService):
             ):
                 continue
 
-            detailed_news = self.udn_client.parse_udn_article(
-                result_item["titleLink"]
-            )
+            detailed_news = self.udn_crawler.parse(headline.url)
             summary_text = self.ai_completion(
                 SUMMARY_SYSTEM_PROMPT,
-                " ".join(detailed_news["content"]),
+                detailed_news.content,
             )
             summary_dict = json.loads(summary_text)
-            detailed_news["summary"] = summary_dict["影響"]
-            detailed_news["reason"] = summary_dict["原因"]
-            self.news_repo.add_new_news_article(detailed_news)
+
+            news_with_summary = NewsWithSummary(
+                url = detailed_news.url,
+                title = detailed_news.title,
+                time = detailed_news.time,
+                content = detailed_news.content,
+                summary = summary_dict["影響"],
+                reason = summary_dict["原因"],
+            )
+            self.udn_crawler.save(news_with_summary, self.database_session)
 
     def search_news_by_keywords(self, keywords: str) -> list[dict]:
         """
@@ -281,15 +194,17 @@ class NewsService(AIService):
         """
         search_results = self.get_new_info(keywords, is_initial=False)
         news_articles: list[dict] = []
-        for result in search_results:
+
+        for headline in search_results:
             try:
-                article_payload = self.udn_client.parse_udn_article(
-                    result["titleLink"]
-                )
-                article_payload["content"] = " ".join(
-                    article_payload["content"]
-                )
-                article_payload["id"] = next(_id_counter)
+                article_payload = self.udn_crawler.parse(headline.url)
+                article_payload = {
+                    "url": article_payload.url,
+                    "title": article_payload.title,
+                    "time": article_payload.time,
+                    "content": article_payload.content,
+                    "id": next(_id_counter),
+                }
                 news_articles.append(article_payload)
             except Exception as exc:
                 print(exc)
@@ -302,8 +217,7 @@ class NewsService(AIService):
 
 
 ai_service = AIService()
-udn_client = UdnNewsSourceService()
-news_repo = NewsArticleRepository(database.SessionLocal)
+udn_crawler = UDNCrawler()
 news_vote_service = NewsVoteService()
-news_service = NewsService(udn_client, news_repo)
+news_service = NewsService(udn_crawler, database_session=database.session)
 _id_counter = itertools.count(start=1000000)
