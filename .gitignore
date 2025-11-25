@@ -1,3 +1,7 @@
 .pytest_cache
 __pycache__
 .env
+.venv
+.gitignore
+.coverage
+coverage.xml
