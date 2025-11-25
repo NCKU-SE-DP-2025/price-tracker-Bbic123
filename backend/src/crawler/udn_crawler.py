@@ -1,10 +1,12 @@
 from requests import Response
+from src.crawler.exceptions import DomainMismatchException
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from urllib.parse import quote
+from src.auth.models import User
 import requests
 
-from .base import NewsCrawlerBase, Headline, News, NewsWithSummary
+from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
 from src.news.models import NewsArticle
 
 class UDNCrawler(NewsCrawlerBase):
@@ -73,6 +75,9 @@ class UDNCrawler(NewsCrawlerBase):
         return headlines
 
     def parse(self, url: str) -> News:
+        if not self._is_valid_url(url):
+            raise DomainMismatchException(f"Invalid domain for URL: {url}")
+
         response = self._perform_request(url=url)
         soup = BeautifulSoup(response.text, "html.parser")
         return self._extract_news(soup, url)
