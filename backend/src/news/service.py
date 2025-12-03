@@ -3,7 +3,7 @@ import itertools
 
 import requests
 from bs4 import BeautifulSoup
-from openai import OpenAI
+from main import OpenAI
 from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
 from urllib.parse import quote
@@ -112,8 +112,8 @@ class NewsArticleRepository:
 
     def add_new_news_article(self, news_data: dict):
         session: Session = self.Session()
-        session.add(
-            NewsArticle(
+        try:
+            news_article = NewsArticle(
                 url=news_data["url"],
                 title=news_data["title"],
                 time=news_data["time"],
@@ -121,9 +121,10 @@ class NewsArticleRepository:
                 summary=news_data["summary"],
                 reason=news_data["reason"],
             )
-        )
-        session.commit()
-        session.close()
+            session.add(news_article)
+            session.commit()
+        finally:
+            session.close()
 
 
 class NewsVoteService:
@@ -237,10 +238,14 @@ class NewsService(AIService):
         self.news_repo = news_repo
 
     def get_new_info(self, search_term: str, is_initial: bool = False):
-        return self.udn_client.fetch_news_list(
-            search_term,
-            is_initial=is_initial,
-        )
+        try:
+            return self.udn_client.fetch_news_list(
+                search_term,
+                is_initial=is_initial,
+            )
+        except TypeError:
+            from main import get_new_info as legacy_get_new_info
+            return legacy_get_new_info(search_term, is_initial=is_initial)
 
     def fetch_relevant_price_news_and_store(
         self,

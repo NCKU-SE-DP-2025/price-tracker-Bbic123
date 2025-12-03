@@ -109,8 +109,6 @@ def test_read_user_news(test_user, test_token, test_articles):
     assert json_response[1]["is_upvoted"] is False
 
 def mock_openai(mocker, return_content):
-    mock_openai_client = mocker.patch('main.OpenAI')
-
     mock_message = Mock()
     mock_message.content = return_content
 
@@ -120,28 +118,24 @@ def mock_openai(mocker, return_content):
     mock_completion = Mock()
     mock_completion.choices = [mock_choice]
 
-    mock_openai_client.return_value.chat.completions.create.return_value = mock_completion
-
-    return mock_openai_client
+    # Patch the ai_completion method directly on the ai_service instance
+    mock_ai_completion = mocker.patch('src.news.service.ai_service.ai_completion', return_value=return_content)
+    
+    return mock_ai_completion
 
 def test_search_news(mocker):
-    mock_openai(mocker, "keywords")
+    mock_ai_completion = mock_openai(mocker, "keywords")
 
-    mock_get_new_info = mocker.patch("main.get_new_info", return_value=[
+    mock_get_new_info = mocker.patch("src.news.service.news_service.get_new_info", return_value=[
         {"titleLink": "http://example.com/news1"}
     ])
 
-    mock_get = mocker.patch("main.requests.get", return_value=mocker.Mock(
-        text="""
-        <html>
-        <h1 class="article-content__title">Test Title</h1>
-        <time class="article-content__time">2024-09-10</time>
-        <section class="article-content__editor">
-            <p>This is a test paragraph.</p>
-        </section>
-        </html>
-        """
-    ))
+    mock_parse = mocker.patch("src.news.service.udn_client.parse_udn_article", return_value={
+        "url": "http://example.com/news1",
+        "title": "Test Title",
+        "time": "2024-09-10",
+        "content": ["This is a test paragraph."]
+    })
 
     request_body = {"prompt": "Test search prompt"}
 
@@ -159,7 +153,7 @@ def test_search_news(mocker):
 def test_news_summary(mocker, test_token):
     headers = {"Authorization": f"Bearer {test_token}"}
     openai_response = json.dumps({"影響": "test impact", "原因": "test reason"})
-    mock_openai(mocker, openai_response)
+    mock_ai_completion = mock_openai(mocker, openai_response)
 
     request_body = NewsSumaryRequestSchema(content="Test news content")
     response = client.post("/api/v1/news/news_summary", json=request_body.dict(), headers=headers)
@@ -168,7 +162,6 @@ def test_news_summary(mocker, test_token):
     json_response = response.json()
     assert json_response["summary"] == "test impact"
     assert json_response["reason"] == "test reason"
-
 
 def test_upvote_article(test_user_and_articles, test_token):
     user, articles = test_user_and_articles

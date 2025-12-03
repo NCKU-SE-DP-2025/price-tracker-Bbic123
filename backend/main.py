@@ -2,14 +2,23 @@ import sentry_sdk
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import requests
+from openai import OpenAI
 
 from src.auth.router import router as auth_router
-from src.database import database
-from src.news.models import NewsArticle
+from src.auth.models import User
+from src.auth.service import password_service
+from src.database import database, Base
+from src.news.models import NewsArticle, user_news_association_table
 from src.news.router import router as news_router
 from src.news.service import news_service
+from src.news.schemas import PromptRequest
 from src.prices.router import router as prices_router
+from src.news.schemas import NewsSummaryRequestSchema as NewsSumaryRequestSchema
 
+session_opener = database.get_session
+pwd_context = password_service.password_context
+get_new_info = news_service.get_new_info
 
 sentry_sdk.init(
 	dsn="https://4001ffe917ccb261aa0e0c34026dc343@o4505702629834752.ingest.us.sentry.io/4507694792704000",
@@ -35,12 +44,10 @@ app.include_router(prices_router, prefix="/api/v1")
 
 @app.on_event("startup")
 def start_scheduler():
-    # 先建表（此時 models 已經因為 import router 被載入）
     database.create_tables()
 
     database_session = database.SessionLocal()
     if database_session.query(NewsArticle).count() == 0:
-        # 原本就有：啟動時先抓一批新聞
         news_service.fetch_relevant_price_news_and_store()
     database_session.close()
 
