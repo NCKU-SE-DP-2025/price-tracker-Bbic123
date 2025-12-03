@@ -39,29 +39,29 @@ user_news_association_table = Table(
 )
 
 class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(50), unique=True, nullable=False)
-    hashed_password = Column(String(200), nullable=False)
-    upvoted_news = relationship(
-        "NewsArticle",
-        secondary=user_news_association_table,
-        back_populates="upvoted_by_users",
-    )
+	__tablename__ = "users"
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	username = Column(String(50), unique=True, nullable=False)
+	hashed_password = Column(String(200), nullable=False)
+	upvoted_news = relationship(
+		"NewsArticle",
+		secondary=user_news_association_table,
+		back_populates="upvoted_by_users",
+	)
 
 
 class NewsArticle(Base):
-    __tablename__ = "news_articles"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    url = Column(String, unique=True, nullable=False)
-    title = Column(String, nullable=False)
-    time = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    summary = Column(Text, nullable=False)
-    reason = Column(Text, nullable=False)
-    upvoted_by_users = relationship(
-        "User", secondary=user_news_association_table, back_populates="upvoted_news"
-    )
+	__tablename__ = "news_articles"
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	url = Column(String, unique=True, nullable=False)
+	title = Column(String, nullable=False)
+	time = Column(String, nullable=False)
+	content = Column(Text, nullable=False)
+	summary = Column(Text, nullable=False)
+	reason = Column(Text, nullable=False)
+	upvoted_by_users = relationship(
+		"User", secondary=user_news_association_table, back_populates="upvoted_news"
+	)
 
 
 engine = create_engine("sqlite:///news_database.db", echo=True)
@@ -71,9 +71,9 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
 sentry_sdk.init(
-    dsn="https://4001ffe917ccb261aa0e0c34026dc343@o4505702629834752.ingest.us.sentry.io/4507694792704000",
-    traces_sample_rate=1.0,
-    profiles_sample_rate=1.0,
+	dsn="https://4001ffe917ccb261aa0e0c34026dc343@o4505702629834752.ingest.us.sentry.io/4507694792704000",
+	traces_sample_rate=1.0,
+	profiles_sample_rate=1.0,
 )
 
 app = FastAPI()
@@ -81,11 +81,11 @@ background_scheduler = BackgroundScheduler()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app.add_middleware(
-    CORSMiddleware,  # noqa
-    allow_origins=["http://localhost:8080"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+	CORSMiddleware,  # noqa
+	allow_origins=["http://localhost:8080"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
 )
 
 # password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -521,7 +521,7 @@ def get_user_news(
 
 
 class PromptRequest(BaseModel):
-    prompt: str
+	prompt: str
 
 @app.post("/api/v1/news/search_news")
 async def search_news(prompt_request: PromptRequest):
