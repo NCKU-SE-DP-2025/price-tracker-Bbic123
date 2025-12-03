@@ -5,11 +5,18 @@ from sqlalchemy.orm import sessionmaker
 import json
 from jose import jwt
 from main import app
-from main import Base, NewsArticle, User, session_opener, user_news_association_table
-from main import NewsSumaryRequestSchema, PromptRequest
-from main import pwd_context
+from src.auth.models import User
+from src.news.schemas import NewsSummaryRequestSchema
+from src.news.schemas import PromptRequest
+from src.auth.service import password_service
 from unittest.mock import Mock
+from src.database import database, Base
+from src.news.models import NewsArticle, user_news_association_table
+from src.crawler.udn_crawler import UDNCrawler
+from src.crawler.crawler_base import News, Headline
 
+pwd_context = password_service.password_context
+session_opener = database.get_session
 
 SECRET_KEY = "1892dhianiandowqd0n"
 ALGORITHM = "HS256"
@@ -127,15 +134,15 @@ def test_search_news(mocker):
     mock_ai_completion = mock_openai(mocker, "keywords")
 
     mock_get_new_info = mocker.patch("src.news.service.news_service.get_new_info", return_value=[
-        {"titleLink": "http://example.com/news1"}
+        Headline(title="Test News Title", url="http://example.com/news1")
     ])
 
-    mock_parse = mocker.patch("src.news.service.udn_client.parse_udn_article", return_value={
-        "url": "http://example.com/news1",
-        "title": "Test Title",
-        "time": "2024-09-10",
-        "content": ["This is a test paragraph."]
-    })
+    mock_parse = mocker.patch("src.crawler.udn_crawler.UDNCrawler.parse", return_value=News(
+        url="http://example.com/news1",
+        title="Test Title",
+        time="2024-09-10",
+        content="This is a test paragraph."
+    ))
 
     request_body = {"prompt": "Test search prompt"}
 
@@ -155,7 +162,7 @@ def test_news_summary(mocker, test_token):
     openai_response = json.dumps({"影響": "test impact", "原因": "test reason"})
     mock_ai_completion = mock_openai(mocker, openai_response)
 
-    request_body = NewsSumaryRequestSchema(content="Test news content")
+    request_body = NewsSummaryRequestSchema(content="Test news content")
     response = client.post("/api/v1/news/news_summary", json=request_body.dict(), headers=headers)
 
     assert response.status_code == 200
